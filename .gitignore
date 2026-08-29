@@ -1,0 +1,35 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+venv/
+env/
+.venv/
+*.egg
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Data (synthetic data can be regenerated, don't bloat the repo) ---
+data/synthetic/*.csv
+data/ground_truth/*.csv
+*.db
+*.sqlite3
+
+# --- Streamlit ---
+.streamlit/
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --- Docker ---
+*.log
+
+# --- Env / secrets (just in case) ---
+.env
