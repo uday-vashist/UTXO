@@ -1,23 +1,23 @@
 # --- Data generation ---
-faker==30.8.2
-numpy==1.26.4
-pandas==2.2.2
+faker
+numpy
+pandas
 
 # --- Graph ---
-networkx==3.3
+networkx
 
 # --- ML / anomaly detection ---
-scikit-learn==1.5.1
-shap==0.46.0
+scikit-learn
+shap
 
 # --- Dashboard / visualization ---
-streamlit==1.38.0
-pyvis==0.3.2
-matplotlib==3.9.0
+streamlit
+pyvis
+matplotlib
 
 # --- Utilities ---
-python-dateutil==2.9.0.post0
-tqdm==4.66.4
+python-dateutil
+tqdm
 
 # --- Optional: static GeoIP lookups (offline DB, no live API) ---
-geoip2==4.8.0
+geoip2
