@@ -148,6 +148,11 @@ class SyntheticDataGenerator:
 
             amount_btc = round(float(self.np_rng.lognormal(mean=-1.5, sigma=1.0)), 6)
             amount_btc = max(0.0001, min(50.0, amount_btc))
+            if has_change:
+                change_amount = round(self.rng.uniform(0.05, 1.5) * amount_btc, 6)
+                output_amounts = [amount_btc, change_amount]
+            else:
+                output_amounts = [amount_btc]
             fee_btc = round(float(self.np_rng.uniform(0.00002, 0.00030)), 8)
 
             # Network telemetry
@@ -169,6 +174,7 @@ class SyntheticDataGenerator:
                 "txid": txid,
                 "input_addresses": ";".join(input_addrs),
                 "output_addresses": ";".join(output_addrs),
+                "output_amounts": ";".join(str(x) for x in output_amounts),
                 "amount_btc": amount_btc,
                 "fee_btc": fee_btc,
                 "script_type": sender_wallet["script_type"],
@@ -204,8 +210,6 @@ class SyntheticDataGenerator:
             generate_btc_address(script_type=st, rng=self.rng)
             for _ in range(self.rng.randint(2, 5))
         ]
-        all_outputs = output_wallets + change_wallets
-        self.rng.shuffle(all_outputs)
 
         # Broadcasted via Tor exit node
         tor_ip_info = self._get_random_ip(tor_only=True)
@@ -213,6 +217,20 @@ class SyntheticDataGenerator:
 
         total_amount = round(uniform_amount * n_participants + self.rng.uniform(0.01, 0.5), 6)
         fee_btc = round(0.0005 + (0.00005 * n_participants), 8)
+
+        # Distribute amounts cleanly matching the shuffle
+        output_mappings = [(addr, uniform_amount) for addr in output_wallets]
+        change_total = round(total_amount - (uniform_amount * n_participants), 6)
+        if len(change_wallets) > 0:
+            change_share = round(change_total / len(change_wallets), 6)
+            for addr in change_wallets:
+                output_mappings.append((addr, change_share))
+        else:
+            total_amount = round(uniform_amount * n_participants, 6)
+
+        self.rng.shuffle(output_mappings)
+        shuffled_addrs = [item[0] for item in output_mappings]
+        shuffled_amounts = [item[1] for item in output_mappings]
 
         txid = generate_txid(rng=self.rng)
         timestamp = (base_time + datetime.timedelta(seconds=self.rng.randint(10, 300))).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -225,7 +243,8 @@ class SyntheticDataGenerator:
             "dst_port": 8333,
             "txid": txid,
             "input_addresses": ";".join(input_wallets),
-            "output_addresses": ";".join(all_outputs),
+            "output_addresses": ";".join(shuffled_addrs),
+            "output_amounts": ";".join(str(x) for x in shuffled_amounts),
             "amount_btc": total_amount,
             "fee_btc": fee_btc,
             "script_type": st,
@@ -317,6 +336,7 @@ class SyntheticDataGenerator:
                 "txid": txid,
                 "input_addresses": current_input_wallet,
                 "output_addresses": f"{peel_dest_wallet};{next_change_wallet}",
+                "output_amounts": f"{peel_amount};{change_amount}",
                 "amount_btc": peel_amount,
                 "fee_btc": fee,
                 "script_type": st,
@@ -380,7 +400,7 @@ class SyntheticDataGenerator:
             ip_info = self.rng.choice(self.ip_pool)
             dest_wallet = generate_btc_address(script_type=st, rng=self.rng)
             txid = generate_txid(rng=self.rng)
-
+            amount_val = round(self.rng.uniform(0.1, 2.0), 6)
             txns.append({
                 "timestamp": current_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "src_ip": ip_info["ip"],
@@ -390,7 +410,8 @@ class SyntheticDataGenerator:
                 "txid": txid,
                 "input_addresses": source_wallet,
                 "output_addresses": dest_wallet,
-                "amount_btc": round(self.rng.uniform(0.1, 2.0), 6),
+                "output_amounts": str(amount_val),
+                "amount_btc": amount_val,
                 "fee_btc": 0.00025,
                 "script_type": st,
                 "geo_country": ip_info["country"],
@@ -435,6 +456,7 @@ class SyntheticDataGenerator:
             "txid": txid,
             "input_addresses": victim_wallet,
             "output_addresses": ransom_wallet,
+            "output_amounts": str(large_amount),
             "amount_btc": large_amount,
             "fee_btc": 0.0008,
             "script_type": st,
@@ -532,6 +554,7 @@ class SyntheticDataGenerator:
             "txid",
             "input_addresses",
             "output_addresses",
+            "output_amounts",
             "amount_btc",
             "fee_btc",
             "script_type",

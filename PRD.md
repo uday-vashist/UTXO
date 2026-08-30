@@ -84,7 +84,7 @@ An NTRO cyber-intel analyst who needs to triage a batch of transaction + network
 ## 8. Data Requirements (synthetic, since no real dataset given)
 
 Minimum CSV fields:
-`timestamp, src_ip, src_port, dst_ip, dst_port, txid, input_addresses, output_addresses, amount_btc, fee_btc, script_type, geo_country, asn, is_tor_exit`
+`timestamp, src_ip, src_port, dst_ip, dst_port, txid, input_addresses, output_addresses, output_amounts, amount_btc, fee_btc, script_type, geo_country, asn, is_tor_exit`
 
 Generator must simulate: normal wallets, mixing/layering wallets, peeling chains, a handful of "ground truth" illicit clusters (so we can self-evaluate precision/recall even without real labels).
 
