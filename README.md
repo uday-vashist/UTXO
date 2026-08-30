@@ -15,11 +15,11 @@ Existing tools (GraphSense, BlockSci, Chainalysis) only look at the blockchain l
 An offline, Linux-compatible pipeline + dashboard that:
 
 1. **Fuses** blockchain data (wallets, TXIDs, amounts, script types) with network data (src/dst IP, port, timestamp) into a single **entity graph** — wallets, IPs, and TXIDs as nodes, with typed edges (co-spend, first-broadcast, transaction flow).
-2. **Detects anomalies** on that graph using unsupervised ML (Isolation Forest) over features like transaction burst frequency, amount deviation, co-spend cluster size, geo/ASN mismatch, and Tor-exit-node usage.
-3. **Explains every alert** using SHAP — so an analyst sees *why* something was flagged, not just a score.
+2. **Detects anomalies** on that graph using unsupervised ML (Extended Isolation Forest) over features like transaction burst frequency, amount deviation, co-spend cluster size, geo/ASN mismatch, and Tor-exit-node usage.
+3. **Explains every alert** using TreeSHAP — so an analyst sees *why* something was flagged, not just a score.
 4. **Visualizes** everything in an interactive Streamlit + pyvis dashboard, with a ranked alert table and a clickable link-analysis graph.
 
-Since no real dataset was provided, we generate a **realistic synthetic dataset** (with injected ground-truth illicit clusters) to build, test, and demo against.
+Since no real dataset was provided, we generate a **realistic synthetic dataset** (with injected ground-truth illicit clusters, matching `output_addresses` 1-to-1 with `output_amounts` to preserve detailed multi-output flows) to build, test, and demo against.
 
 **Important honest limitation we lead with, not hide:** identifying the "initiator" of a transaction via IP is *probabilistic, not guaranteed* — Bitcoin's gossip-relay network means the first-seen IP isn't always the true sender, and VPN/Tor can hide it entirely. So we report a **confidence score**, and when the network-layer signal is weak (VPN/Tor in use), we fall back on IP-independent blockchain heuristics (co-spend clustering, peeling-chain detection, behavioral fingerprinting) — and treat anonymization behavior itself as an anomaly signal.
 
@@ -31,7 +31,7 @@ Since no real dataset was provided, we generate a **realistic synthetic dataset*
 
 ## Tech Stack (at a glance)
 
-Synthetic data (Faker) → Ingestion (pandas) → Entity graph (NetworkX) → Anomaly detection (scikit-learn Isolation Forest) → Explainability (SHAP) → Dashboard (Streamlit + pyvis) → Deployment (Docker, offline, Linux).
+Synthetic data (Faker) → Ingestion (pandas) → Entity graph (NetworkX) → Anomaly detection (Extended Isolation Forest / Isolation Forest) → Explainability (TreeSHAP) → Dashboard (Streamlit + pyvis) → Deployment (Docker, offline, Linux).
 
 ## Quickstart (once code exists)
 

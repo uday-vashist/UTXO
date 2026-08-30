@@ -68,11 +68,11 @@ Computed per wallet-node and per transaction (join both into one feature table b
 - ip-switching frequency for the wallet's associated IPs
 
 ### 2.5 Anomaly Detection (`src/detection/model.py`)
-- `sklearn.ensemble.IsolationForest`, unsupervised, contamination as a tunable param.
+- `sklearn.ensemble.IsolationForest` or **Extended Isolation Forest (EIF)**, unsupervised, contamination as a tunable param. EIF is preferred to avoid axis-parallel artifacts.
 - Output: `anomaly_score` per entity, normalized to 0–1, plus a bucketed `confidence` (Low/Med/High) derived from score distribution.
 
 ### 2.6 Explainability (`src/explain/`)
-- `shap.TreeExplainer` (works with IsolationForest via sklearn wrapper, or use `shap.Explainer` generically).
+- **TreeSHAP** via `shap.TreeExplainer` (works natively with tree-based models like IsolationForest and EIF).
 - For each flagged entity: top 3 features by |SHAP value| → converted to a human-readable reason string, e.g. *"Unusual amount pattern (3.2σ from wallet norm) + Tor-exit IP + high co-spend cluster size."*
 
 ### 2.7 Dashboard (`src/dashboard/app.py`)
@@ -100,7 +100,8 @@ Both should show up separately in the alert detail view.
 | txid | string | hex, unique per transaction |
 | input_addresses | string | semicolon-separated list |
 | output_addresses | string | semicolon-separated list |
-| amount_btc | float | |
+| output_amounts | string | semicolon-separated list of float values matching output_addresses 1-to-1 |
+| amount_btc | float | total transaction amount (sum of outputs or primary transfer amount) |
 | fee_btc | float | |
 | script_type | string | e.g. P2PKH, P2WPKH, P2SH |
 | geo_country | string | from static GeoIP mapping |
@@ -114,8 +115,8 @@ Both should show up separately in the alert detail view.
 | Synthetic data | Python + Faker | No GPU, fast, realistic-enough identifiers |
 | Ingestion | pandas / json / xml.etree | standard, extensible |
 | Entity graph | NetworkX | pure-Python, no server dependency, fine at hackathon scale |
-| Anomaly detection | scikit-learn (IsolationForest) | unsupervised, no labels needed, fast, explainable via SHAP |
-| Explainability | SHAP | model-agnostic-ish, well-known, judge-friendly |
+| Anomaly detection | scikit-learn (IsolationForest) / EIF | unsupervised, no labels needed, fast, explainable via SHAP |
+| Explainability | SHAP (TreeSHAP) | exact Shapley values for tree models, fast, judge-friendly |
 | Dashboard | Streamlit + pyvis | fastest way to a polished interactive demo |
 | Deployment | Docker | guarantees "offline + Linux" requirement is met |
 
