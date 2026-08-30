@@ -26,7 +26,7 @@ def test_synthetic_data_generation():
     # 2. Check exact schema columns as specified in PRD §8
     expected_cols = [
         "timestamp", "src_ip", "src_port", "dst_ip", "dst_port",
-        "txid", "input_addresses", "output_addresses", "amount_btc",
+        "txid", "input_addresses", "output_addresses", "output_amounts", "amount_btc",
         "fee_btc", "script_type", "geo_country", "asn", "is_tor_exit"
     ]
     assert list(df.columns) == expected_cols, f"Column mismatch: {list(df.columns)} vs {expected_cols}"
