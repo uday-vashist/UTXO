@@ -1,0 +1,68 @@
+# BitSentinel Dashboard Layout & Interaction Plan
+
+This document defines the interface layout, interactive elements, widgets, and data flows for the BitSentinel Streamlit application.
+
+---
+
+## 1. Left Sidebar: Control & Configuration Panel
+The sidebar allows the analyst to configure and rerun the anomaly detection backend.
+*   **Title/Branding**: "BitSentinel Core" with a glowing green monitoring logo.
+*   **Data Source Input**: A text input to change the dataset path (default: `data/synthetic/transactions.csv`).
+*   **Model Type Radio Buttons**: 
+    *   `[o] Extended Isolation Forest (EIH)` (Default) - Axis-free random orientations.
+    *   `[ ] Standard Isolation Forest` - Axis-parallel decision trees.
+*   **Contamination Rate Slider**: Range `0.01` to `0.20`, default `0.05`.
+*   **Random Seed Input**: Number input for reproducibility (default `42`).
+*   **"Run Analysis Pipeline" Button**:
+    *   *Action*: Triggers the backend CLI process (`src/pipeline.py`), regenerates `data/alerts.csv` and `data/entity_graph.pkl`, and triggers a page refresh to update the metrics and graphs.
+
+---
+
+## 2. Main Header: Live Metrics & Indicators
+At the top of the main screen, four cards show high-level aggregate metrics:
+1.  **Total Wallets Analyzed**: Large numeric indicator (e.g. `4,304`).
+2.  **High-Risk Alerts**: Large numeric indicator showing count of "High" confidence anomalies (e.g., `45` in Red).
+3.  **Avg Anomaly Score**: General risk indicator (e.g. `0.23` in Blue).
+4.  **Network Attribution Confidence**: Percentage of telemetry records with strong attribution confidence (e.g. `82.4%` in Green).
+
+---
+
+## 3. Section 1: Alert Triage Center (Interactive Data Table)
+An interactive dataframe view displaying the top alerts ranked by anomaly score descending:
+*   **Filter Options**:
+    *   **Risk Level Selector**: Multi-select dropdown (`High`, `Medium`, `Low`).
+    *   **Search Bar**: Text search to find specific wallet addresses.
+*   **Columns**:
+    *   `Address` (Truncated, with a click-to-copy button).
+    *   `Anomaly Score` (Colored bar indicator: red = high, yellow = medium, green = low).
+    *   `Risk Confidence` (`High`, `Medium`, `Low`).
+    *   `Attribution Confidence` (Percent probability representing telemetry consistency).
+    *   `Primary Reasons` (SHAP-generated human-readable explanations).
+*   **Actions**:
+    *   Clicking a row selects that wallet node for graph visualization.
+
+---
+
+## 4. Section 2: Interactive Entity Subgraph (Network Visualization)
+A dynamic Pyvis iframe container that renders a localized ego-network of the selected wallet:
+*   **Controls**:
+    *   **Max Hop Slider**: Depth of relations to pull from the node (range `1` to `3`, default `2`).
+    *   **Edge Type Filters**: Toggle checkboxes (`[x] Flow`, `[x] Co-spend`, `[x] Propagation`).
+*   **Graph Aesthetics**:
+    *   **Wallet Nodes**: Hexagonal icons colored by anomaly score (Red = Alert, Green = Normal).
+    *   **IP Nodes**: Circular blue icons representing first-broadcast propagation sources (flashing red indicator if it is a Tor Exit Node).
+    *   **Transaction Nodes**: Gray diamond icons representing transaction IDs.
+    *   **Interactive Physics Controls**: Play/pause graph physics, zoom, and click nodes to view their full details in an inspection panel.
+
+---
+
+## 5. Section 3: Telemetry Inspection Panel
+A side-by-side or expanding detail box that displays metadata about the currently selected wallet node:
+*   **Left Column (Structural Profile)**:
+    *   Degree Centrality.
+    *   First broadcast datetime.
+    *   Total BTC volume received/sent.
+*   **Right Column (Propagation Profile)**:
+    *   Full list of IPs associated with the wallet.
+    *   Tor exit ratio (glowing red text if $\ge 0.50$).
+    *   Frequency of IP switching.
