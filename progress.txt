@@ -64,6 +64,23 @@ Goal: Offline, explainable fusion of Blockchain Ledger + P2P Network Propagation
        - tests/test_features.py:
          * Comprehensive unit tests passing
 
+[DONE] 5. Milestone 3: ML Anomaly Detection & SHAP Explainability (src/detection/, src/explain/, src/pipeline.py)
+       - src/ingestion/loader.py:
+         * load_csv(file): CSV ingestion and schema validation
+       - src/detection/eif.py:
+         * ExtendedIsolationForest: Pure-Python axis-free Extended Isolation Forest model
+       - src/detection/model.py:
+         * train_and_score(df, G): Trains Isolation Forest or EIH, normalizes scores [0, 1]
+         * calculate_wallet_attribution_confidence(G, wallet): network confidence (Tor exit penalties, consistency boosts)
+       - src/explain/explainer.py:
+         * explain_anomalies(model, df): TreeSHAP (standard) or optimized KernelSHAP (EIH) feature explanations
+       - src/pipeline.py:
+         * End-to-end CLI orchestrator pipeline saving alerts CSV and graph pickle
+       - tests/test_detection.py, tests/test_explain.py:
+         * Unit and integration tests passing
+
+
+
 ================================================================================
 2. TEST SUITE VERIFICATION STATUS
 ================================================================================
@@ -72,12 +89,14 @@ All existing test suites are PASSING:
   - tests/test_data_gen.py  -> [OK] PASS
   - tests/test_graph.py     -> [OK] PASS
   - tests/test_features.py  -> [OK] PASS
+  - tests/test_detection.py -> [OK] PASS
+  - tests/test_explain.py   -> [OK] PASS
 
 ================================================================================
 3. REMAINING WORK & ROADMAP
 ================================================================================
 
-[ ] Milestone 3: ML Anomaly Detection & SHAP Explainability
+[DONE] Milestone 3: ML Anomaly Detection & SHAP Explainability
     - src/detection/model.py:
       * Isolation Forest model training on extracted feature table
       * Anomaly scoring and dual confidence estimation (Anomaly Confidence vs Attribution Confidence)

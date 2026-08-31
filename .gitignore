@@ -13,8 +13,7 @@ env/
 .ipynb_checkpoints/
 
 # --- Data (synthetic data can be regenerated, don't bloat the repo) ---
-data/synthetic/*.csv
-data/ground_truth/*.csv
+data/
 *.db
 *.sqlite3
 
