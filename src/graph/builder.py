@@ -96,21 +96,29 @@ def build_graph(df: pd.DataFrame) -> nx.MultiDiGraph:
     if df.empty:
         return G
 
+    # Optimize: Pre-clean and strip string columns in pandas to avoid per-row string operation overhead
+    df_clean = df.copy()
+    df_clean["txid"] = df_clean["txid"].astype(str).str.strip()
+    df_clean["src_ip"] = df_clean["src_ip"].astype(str).str.strip()
+    df_clean["geo_country"] = df_clean["geo_country"].astype(str).str.strip()
+    df_clean["asn"] = df_clean["asn"].astype(str).str.strip()
+    df_clean["script_type"] = df_clean["script_type"].astype(str).str.strip()
+
     # Find earliest broadcast event per txid by chronological timestamp ordering
-    sorted_df = df.sort_values(by="timestamp").reset_index(drop=True)
+    sorted_df = df_clean.sort_values(by="timestamp").reset_index(drop=True)
     seen_txids = set()
 
     for idx, row in sorted_df.iterrows():
-        txid = str(row["txid"]).strip()
+        txid = row["txid"]
         if not txid:
             continue
 
         ts = str(row["timestamp"])
-        src_ip = str(row["src_ip"]).strip()
-        geo_country = str(row["geo_country"])
-        asn = str(row["asn"])
+        src_ip = row["src_ip"]
+        geo_country = row["geo_country"]
+        asn = row["asn"]
         is_tor = bool(row["is_tor_exit"])
-        script_type = str(row["script_type"])
+        script_type = row["script_type"]
         amount_btc = float(row["amount_btc"])
         fee_btc = float(row["fee_btc"])
 
