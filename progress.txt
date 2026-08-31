@@ -1,0 +1,102 @@
+================================================================================
+                      UTXO — BITCOIN TRAFFIC MONITORING
+                                PROGRESS REPORT
+================================================================================
+
+Date / Status: August 31, 2026
+Problem Statement: SIH26146 (NTRO) · AI-Powered Monitoring of Bitcoin Transaction Traffic
+Goal: Offline, explainable fusion of Blockchain Ledger + P2P Network Propagation Telemetry
+
+================================================================================
+1. CURRENT IMPLEMENTATION SUMMARY & FILE STATUS
+================================================================================
+
+[DONE] 1. Environment & Dependencies
+       - requirements.txt installed and verified across all dependencies
+       - Packages: faker, pandas, numpy, networkx, scikit-learn, shap, streamlit, pyvis, matplotlib, tqdm, geoip2
+
+[DONE] 2. Milestone 1: Synthetic Data Generation & Reference Data (src/data_gen/)
+       - src/data_gen/constants.py:
+         * Base58/Bech32 address generators for P2PKH, P2SH, P2WPKH, P2TR
+         * Static GeoIP & ASN pools (16 residential, datacenter, bulletproof hosting subnets)
+         * Static Tor exit-node registry (48 known exit IPs)
+       - src/data_gen/generate.py:
+         * 15-column schema: timestamp, src_ip, src_port, dst_ip, dst_port, txid,
+           input_addresses, output_addresses, output_amounts, amount_btc, fee_btc,
+           script_type, geo_country, asn, is_tor_exit
+         * Normal transaction patterns (co-spend, change outputs, lognormal amounts)
+         * Injected illicit patterns:
+           - Mixing / CoinJoin Layering (many-in / many-out uniform denominations via Tor)
+           - Peeling Chains (sequential hops with peeled payment + chained change outputs)
+           - Rapid IP / ASN Hopping (high-frequency burst across distinct global subnets)
+           - Tor Ransomware Payouts (large amount z-scores via Tor & bulletproof ASNs)
+         * CLI: python -m src.data_gen.generate --out data/synthetic/transactions.csv ...
+       - data/synthetic/ & data/ground_truth/:
+         * data/synthetic/transactions.csv (5000+ generated transactions)
+         * data/ground_truth/illicit_clusters.csv (labeled entities & ground truth clusters)
+         * data/synthetic/geoip_lookup.csv & data/synthetic/tor_exit_nodes.csv
+       - tests/test_data_gen.py:
+         * Unit and integration tests passing
+
+[DONE] 3. Milestone 2 (Part A): Entity Graph Construction (src/graph/)
+       - src/graph/builder.py:
+         * Converts transaction table into NetworkX MultiDiGraph
+         * Nodes:
+           - 'wallet': Bitcoin addresses
+           - 'txid': Transaction records with amount, fee, timestamp, script_type
+           - 'ip': P2P broadcast IPs with geo_country, asn, is_tor_exit
+         * Directed Typed Edges:
+           - 'flow': input_wallet -> txid (inflow) and txid -> output_wallet (outflow)
+           - 'co_spend': Bidirectional edges between co-spending inputs in multi-input txs
+           - 'first_broadcast': src_ip -> input_wallet for earliest broadcast event
+             with attribution confidence weighting (0.85 standard, 0.35 Tor penalized)
+       - tests/test_graph.py:
+         * Comprehensive suite of unit & integration tests passing
+
+[DONE] 4. Milestone 2 (Part B): Feature Engineering (src/detection/)
+       - src/detection/features.py:
+         * compute_features(G): Computes per-wallet feature table indexed by address:
+           1. Graph structural: degree_centrality, co_spend_cluster_size
+           2. Network telemetry: unique_ips, tor_broadcast_ratio, ip_switching_frequency
+           3. Ledger volume: tx_count, total_volume_btc, avg_tx_amount, max_tx_amount, std_tx_amount
+           4. Burstiness & Timing: burst_ratio (txs within 10s intervals)
+           5. On-chain heuristics: peeling_chain_score
+       - tests/test_features.py:
+         * Comprehensive unit tests passing
+
+================================================================================
+2. TEST SUITE VERIFICATION STATUS
+================================================================================
+
+All existing test suites are PASSING:
+  - tests/test_data_gen.py  -> [OK] PASS
+  - tests/test_graph.py     -> [OK] PASS
+  - tests/test_features.py  -> [OK] PASS
+
+================================================================================
+3. REMAINING WORK & ROADMAP
+================================================================================
+
+[ ] Milestone 3: ML Anomaly Detection & SHAP Explainability
+    - src/detection/model.py:
+      * Isolation Forest model training on extracted feature table
+      * Anomaly scoring and dual confidence estimation (Anomaly Confidence vs Attribution Confidence)
+    - src/explain/explainer.py:
+      * SHAP TreeExplainer / KernelExplainer integration
+      * Conversion of top feature contributions to human-readable analyst explanations
+    - src/pipeline.py:
+      * End-to-end CLI pipeline script (Ingestion -> Graph -> Features -> Detection -> Explain -> Alerts CSV)
+
+[ ] Milestone 4: Interactive Analyst Dashboard (src/dashboard/)
+    - src/dashboard/app.py:
+      * Streamlit UI for ranked alert triage table, filtering by score/confidence/date
+      * Pyvis interactive link-analysis graph embedding for selected alert subgraphs
+      * Clear labeling of probabilistic attribution confidence (per PRD §7/§9)
+
+[ ] Milestone 5: Offline Containerization & Linux Verification
+    - docker/Dockerfile:
+      * Packaging the entire pipeline + dashboard for offline execution (--network none)
+
+[ ] Milestone 6: Evaluation & Benchmarking
+    - Evaluation script calculating Precision, Recall, and F1 score against data/ground_truth/illicit_clusters.csv
+================================================================================
