@@ -91,6 +91,7 @@ All existing test suites are PASSING:
   - tests/test_features.py  -> [OK] PASS
   - tests/test_detection.py -> [OK] PASS
   - tests/test_explain.py   -> [OK] PASS
+  - tests/test_dashboard.py -> [OK] PASS
 
 ================================================================================
 3. REMAINING WORK & ROADMAP
@@ -106,11 +107,17 @@ All existing test suites are PASSING:
     - src/pipeline.py:
       * End-to-end CLI pipeline script (Ingestion -> Graph -> Features -> Detection -> Explain -> Alerts CSV)
 
-[ ] Milestone 4: Interactive Analyst Dashboard (src/dashboard/)
+[DONE] Milestone 4: Interactive Analyst Dashboard (src/dashboard/)
     - src/dashboard/app.py:
-      * Streamlit UI for ranked alert triage table, filtering by score/confidence/date
+      * Streamlit UI for ranked alert triage table with colored score progress bars
       * Pyvis interactive link-analysis graph embedding for selected alert subgraphs
+      * In-app pipeline runner controls with model selection (EIH vs Standard)
+      * Ground truth evaluation benchmarking metrics (Precision, Recall, F1)
       * Clear labeling of probabilistic attribution confidence (per PRD §7/§9)
+    - src/dashboard/graph_viz.py:
+      * Dynamic ego-network subgraph extraction and Pyvis HTML rendering
+    - tests/test_dashboard.py:
+      * Unit tests for subgraph extraction and Pyvis HTML generation passing
 
 [ ] Milestone 5: Offline Containerization & Linux Verification
     - docker/Dockerfile:
