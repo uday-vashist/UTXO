@@ -142,11 +142,16 @@ def train_and_score(
     scored_df = feature_df.copy()
     scored_df["anomaly_score"] = anomaly_scores.astype(float)
 
-    # Categorize anomaly confidence
+    # Categorize anomaly confidence dynamically matching user contamination rate
+    q_high = float(np.clip(1.0 - contamination, 0.50, 0.99))
+    q_med = float(np.clip(1.0 - (contamination * 2.5), 0.25, 0.95))
+    high_threshold = float(np.quantile(anomaly_scores, q_high))
+    med_threshold = float(np.quantile(anomaly_scores, q_med))
+
     def get_confidence_bucket(score: float) -> str:
-        if score >= 0.70:
+        if score >= high_threshold and score > 0.30:
             return "High"
-        if score >= 0.45:
+        if score >= med_threshold and score > 0.15:
             return "Medium"
         return "Low"
 

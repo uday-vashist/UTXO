@@ -167,10 +167,18 @@ st.markdown(
 # -----------------------------------------------------------------------------
 @st.cache_data
 def load_alerts(alerts_path: str) -> pd.DataFrame:
-    """Loads ranked anomaly alerts CSV."""
+    """Loads ranked anomaly alerts CSV with robust column guarantees."""
     if not os.path.exists(alerts_path):
         return pd.DataFrame()
     df = pd.read_csv(alerts_path, index_col=0)
+    if not df.empty:
+        # Guarantee presence of attribution_evidence_level
+        if "attribution_evidence_level" not in df.columns:
+            from src.detection.model import get_attribution_evidence_label
+            if "attribution_confidence" in df.columns:
+                df["attribution_evidence_level"] = df["attribution_confidence"].apply(get_attribution_evidence_label)
+            else:
+                df["attribution_evidence_level"] = "No Telemetry (Receiver Only)"
     return df
 
 
@@ -395,19 +403,22 @@ with tab1:
 
         st.markdown(f"**Displaying {len(filtered_df):,} matching alerts** (sorted by Anomaly Score descending):")
 
-        # Configure Interactive DataFrame Display
+        # Configure Interactive DataFrame Display with defensive column slicing
+        target_cols = [
+            "anomaly_score",
+            "anomaly_confidence",
+            "attribution_confidence",
+            "attribution_evidence_level",
+            "top_reasons",
+            "total_volume_btc",
+            "tx_count",
+            "unique_ips",
+            "tor_broadcast_ratio",
+        ]
+        available_cols = [c for c in target_cols if c in filtered_df.columns]
+
         st.dataframe(
-            filtered_df[[
-                "anomaly_score",
-                "anomaly_confidence",
-                "attribution_confidence",
-                "attribution_evidence_level",
-                "top_reasons",
-                "total_volume_btc",
-                "tx_count",
-                "unique_ips",
-                "tor_broadcast_ratio",
-            ]],
+            filtered_df[available_cols],
             use_container_width=True,
             height=400,
             column_config={
@@ -530,6 +541,13 @@ with tab2:
             with d_col2:
                 tor_ratio = float(w_row.get('tor_broadcast_ratio', 0.0))
                 tor_display = f"<span style='color: #ef4444; font-weight: bold;'>{tor_ratio:.1%} (Tor Detected)</span>" if tor_ratio > 0 else f"{tor_ratio:.1%}"
+                attr_val = w_row.get("attribution_confidence", np.nan)
+                if pd.notna(attr_val) and not np.isnan(float(attr_val)):
+                    attr_display = f"{float(attr_val):.1%}"
+                else:
+                    attr_display = "<span style='color: #94a3b8;'>No Broadcast Telemetry (Receiver)</span>"
+                attr_status = w_row.get("attribution_evidence_level", "No Telemetry (Receiver Only)")
+
                 st.markdown(
                     f"""
                     <div class="metric-card">
@@ -538,7 +556,8 @@ with tab2:
                         <p style="margin: 4px 0;"><b>Tor Exit Node Ratio:</b> {tor_display}</p>
                         <p style="margin: 4px 0;"><b>IP Switching Frequency:</b> {w_row.get('ip_switching_frequency', 0):.2f} / tx</p>
                         <p style="margin: 4px 0;"><b>High-Frequency Burst Ratio:</b> {w_row.get('burst_ratio', 0):.1%}</p>
-                        <p style="margin: 4px 0;"><b>Probable Attribution Confidence:</b> {w_row.get('attribution_confidence', 0):.2%}</p>
+                        <p style="margin: 4px 0;"><b>Attribution Evidence Score:</b> {attr_display}</p>
+                        <p style="margin: 4px 0;"><b>Evidence Classification:</b> {attr_status}</p>
                         <p style="margin: 4px 0;"><b>Key Reason:</b> {w_row.get('top_reasons', 'N/A')}</p>
                     </div>
                     """,
