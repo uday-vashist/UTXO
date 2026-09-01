@@ -165,6 +165,23 @@ st.markdown(
 # -----------------------------------------------------------------------------
 # 2. Data Loading & Caching
 # -----------------------------------------------------------------------------
+def _get_evidence_status(conf_val: object) -> str:
+    """Helper to convert attribution confidence into a descriptive forensic evidence label."""
+    if conf_val is None or pd.isna(conf_val):
+        return "No Telemetry (Receiver Only)"
+    try:
+        val = float(conf_val)
+        if np.isnan(val):
+            return "No Telemetry (Receiver Only)"
+        if val >= 0.70:
+            return "Strong Evidence (Direct IP)"
+        if val >= 0.40:
+            return "Moderate Evidence (Multi-IP)"
+        return "Low Evidence (Tor/VPN Relay)"
+    except Exception:
+        return "No Telemetry (Receiver Only)"
+
+
 @st.cache_data
 def load_alerts(alerts_path: str) -> pd.DataFrame:
     """Loads ranked anomaly alerts CSV with robust column guarantees."""
@@ -174,9 +191,8 @@ def load_alerts(alerts_path: str) -> pd.DataFrame:
     if not df.empty:
         # Guarantee presence of attribution_evidence_level
         if "attribution_evidence_level" not in df.columns:
-            from src.detection.model import get_attribution_evidence_label
             if "attribution_confidence" in df.columns:
-                df["attribution_evidence_level"] = df["attribution_confidence"].apply(get_attribution_evidence_label)
+                df["attribution_evidence_level"] = df["attribution_confidence"].apply(_get_evidence_status)
             else:
                 df["attribution_evidence_level"] = "No Telemetry (Receiver Only)"
     return df
