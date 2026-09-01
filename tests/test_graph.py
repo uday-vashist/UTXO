@@ -263,8 +263,26 @@ def test_integration_with_synthetic_generator():
     import os
     if os.path.exists(out_csv):
         os.remove(out_csv)
-    if os.path.exists(gt_csv):
-        os.remove(gt_csv)
+def test_coinjoin_skips_co_spend_edges():
+    """Test 13: CoinJoin transactions with equal outputs do not create false co-spend edges (B1)."""
+    # 3 inputs, 3 equal outputs (0.1 BTC each) plus change
+    row = _create_sample_row(
+        txid="tx_coinjoin_test",
+        input_addresses="1MixerInA;1MixerInB;1MixerInC",
+        output_addresses="1MixerOutA;1MixerOutB;1MixerOutC;1ChangeA",
+        output_amounts="0.1;0.1;0.1;0.05",
+        amount_btc=0.35,
+    )
+    df = pd.DataFrame([row])
+    G = build_graph(df)
+
+    # Assert tx node has is_coinjoin=True
+    assert G.nodes["tx_coinjoin_test"]["is_coinjoin"] is True
+
+    # Assert NO co-spend edges exist between mixing inputs
+    assert not G.has_edge("1MixerInA", "1MixerInB")
+    assert not G.has_edge("1MixerInB", "1MixerInC")
+    assert not G.has_edge("1MixerInA", "1MixerInC")
 
 
 if __name__ == "__main__":

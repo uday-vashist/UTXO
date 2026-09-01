@@ -301,7 +301,7 @@ if not alerts_df.empty:
     high_alerts = len(alerts_df[alerts_df["anomaly_confidence"] == "High"])
     med_alerts = len(alerts_df[alerts_df["anomaly_confidence"] == "Medium"])
     avg_score = alerts_df["anomaly_score"].mean()
-    high_attr = (alerts_df["attribution_confidence"] >= 0.50).mean() * 100
+    high_attr = ((alerts_df["attribution_confidence"].dropna() >= 0.50).mean() * 100) if not alerts_df["attribution_confidence"].dropna().empty else 0.0
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -401,6 +401,7 @@ with tab1:
                 "anomaly_score",
                 "anomaly_confidence",
                 "attribution_confidence",
+                "attribution_evidence_level",
                 "top_reasons",
                 "total_volume_btc",
                 "tx_count",
@@ -419,11 +420,12 @@ with tab1:
                 ),
                 "attribution_confidence": st.column_config.ProgressColumn(
                     "Attribution Conf.",
-                    help="Network-layer initiator attribution probability (PRD §7)",
+                    help="Network telemetry heuristic evidence score (PRD §7/§9)",
                     format="%.2f",
                     min_value=0.0,
                     max_value=1.0,
                 ),
+                "attribution_evidence_level": st.column_config.TextColumn("Attribution Status"),
                 "anomaly_confidence": st.column_config.TextColumn("Risk Level"),
                 "top_reasons": st.column_config.TextColumn("Primary Explanations (SHAP)", width="large"),
                 "total_volume_btc": st.column_config.NumberColumn("Volume (BTC)", format="%.3f"),

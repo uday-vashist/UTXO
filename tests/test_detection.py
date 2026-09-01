@@ -44,23 +44,27 @@ def test_calculate_wallet_attribution_confidence():
     G.add_edge(ip_home, wallet_mixed, edge_type="first_broadcast", attribution_confidence=0.85)
     G.add_edge(ip_tor, wallet_mixed, edge_type="first_broadcast", attribution_confidence=0.35)
 
-    # 1. No telemetry
+    from src.detection.model import get_attribution_evidence_label
+
+    # 1. No telemetry (Finding N3: returns np.nan, labeled as receiver only)
     conf_none = calculate_wallet_attribution_confidence(G, wallet_none)
-    assert conf_none == 0.0
+    assert np.isnan(conf_none)
+    assert get_attribution_evidence_label(conf_none) == "No Telemetry (Receiver Only)"
 
     # 2. Normal (expected high confidence due to single IP consistency boost)
     conf_normal = calculate_wallet_attribution_confidence(G, wallet_normal)
     assert conf_normal > 0.85
+    assert get_attribution_evidence_label(conf_normal) == "Strong Evidence (Direct IP)"
 
-    # 3. Tor (expected low confidence)
+    # 3. Tor (expected low confidence due to anonymization penalty)
     conf_tor = calculate_wallet_attribution_confidence(G, wallet_tor)
     assert conf_tor == 0.35
+    assert get_attribution_evidence_label(conf_tor) == "Low Evidence (Tor/VPN Relay)"
 
     # 4. Mixed (expected intermediate confidence with IP hopping penalty)
     conf_mixed = calculate_wallet_attribution_confidence(G, wallet_mixed)
-    # base = (0.85 + 0.35) / 2 = 0.60
-    # unique IPs = 2 -> penalty = 0.05 * 1 = 0.05 -> final = 0.55
     assert np.isclose(conf_mixed, 0.55)
+    assert get_attribution_evidence_label(conf_mixed) == "Moderate Evidence (Multi-IP)"
 
 
 def test_train_and_score():

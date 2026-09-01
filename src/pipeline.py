@@ -96,6 +96,7 @@ def run_pipeline(
         "anomaly_score",
         "anomaly_confidence",
         "attribution_confidence",
+        "attribution_evidence_level",
         "top_reasons",
     ]
     other_cols = [c for c in final_df.columns if c not in cols]

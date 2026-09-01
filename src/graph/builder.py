@@ -44,6 +44,28 @@ def _parse_output_amounts(val: object, row_idx: int) -> List[float]:
     return parsed
 
 
+from collections import Counter
+
+
+def _is_coinjoin(input_addrs: List[str], output_amts: List[float]) -> bool:
+    """Heuristic to detect CoinJoin/mixing transactions.
+
+    A transaction is identified as a CoinJoin if it has multiple inputs and
+    multiple outputs of identical denomination (e.g. Wasabi/Whirlpool equal-output pattern).
+    Applying the Common-Input Ownership Heuristic to such transactions creates false clusters.
+    """
+    if len(input_addrs) < 2 or len(output_amts) < 2:
+        return False
+    counts = Counter(output_amts)
+    max_equal_outputs = max(counts.values()) if counts else 0
+    # If 3+ inputs and 2+ equal outputs, or 2 inputs and 2 equal outputs
+    if len(input_addrs) >= 3 and max_equal_outputs >= 2:
+        return True
+    if len(input_addrs) >= 2 and max_equal_outputs >= 2 and len(output_amts) >= 3:
+        return True
+    return False
+
+
 def _calculate_attribution_confidence(is_tor_exit: bool) -> float:
     """Calculate attribution confidence score for a first-broadcast edge.
 
@@ -134,6 +156,8 @@ def build_graph(df: pd.DataFrame) -> nx.MultiDiGraph:
                 f"and output_amounts ({len(output_amts)})."
             )
 
+        is_cj = _is_coinjoin(input_addrs, output_amts)
+
         # 2. Add Transaction Node
         if txid not in G:
             G.add_node(
@@ -143,6 +167,7 @@ def build_graph(df: pd.DataFrame) -> nx.MultiDiGraph:
                 amount_btc=amount_btc,
                 fee_btc=fee_btc,
                 script_type=script_type,
+                is_coinjoin=is_cj,
             )
 
         # 3. Add IP Node
@@ -157,6 +182,8 @@ def build_graph(df: pd.DataFrame) -> nx.MultiDiGraph:
 
         # 4. Add Wallet Nodes and Flow Edges
         # Input Wallets & Inflow Edges (wallet -> txid)
+        # Attribute proportional contributed input share to avoid gross-volume inflation (Finding B2)
+        per_input_amt = round(amount_btc / len(input_addrs), 8) if input_addrs else amount_btc
         for in_addr in input_addrs:
             if in_addr not in G:
                 G.add_node(in_addr, node_type="wallet")
@@ -166,6 +193,7 @@ def build_graph(df: pd.DataFrame) -> nx.MultiDiGraph:
                 edge_type="flow",
                 txid=txid,
                 timestamp=ts,
+                amount_btc=per_input_amt,
             )
 
         # Output Wallets & Outflow Edges (txid -> wallet)
@@ -181,8 +209,9 @@ def build_graph(df: pd.DataFrame) -> nx.MultiDiGraph:
                 amount_btc=out_amt,
             )
 
-        # 5. Add Co-Spend Edges (multi-input transactions only)
-        if len(input_addrs) > 1:
+        # 5. Add Co-Spend Edges (multi-input non-CoinJoin transactions only)
+        # Prevents false clustering of unrelated CoinJoin/mixer participants (Finding B1)
+        if len(input_addrs) > 1 and not is_cj:
             for i in range(len(input_addrs)):
                 for j in range(i + 1, len(input_addrs)):
                     addr_a = input_addrs[i]

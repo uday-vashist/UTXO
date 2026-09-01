@@ -82,16 +82,48 @@ Goal: Offline, explainable fusion of Blockchain Ledger + P2P Network Propagation
 
 
 ================================================================================
-2. TEST SUITE VERIFICATION STATUS
+2. AUDIT RESOLUTIONS & TECHNICAL ENHANCEMENTS
 ================================================================================
 
-All existing test suites are PASSING:
+[DONE] B1: CoinJoin Equal-Output Heuristic Isolation (src/graph/builder.py)
+       - Detects equal-denomination output mix transactions.
+       - Disables false Common-Input Ownership co-spend edge clustering between distinct mixing participants.
+       - Prevents catastrophic cluster pollution in mixing scenarios.
+
+[DONE] B2: Proportional Input Flow Volume Attribution (src/graph/builder.py, src/detection/features.py)
+       - Attributes wallet input contribution proportionally (amount_btc / num_inputs) instead of assigning gross transaction volume to every input wallet.
+
+[DONE] B4: Flow-Specific Peeling Chain Degree Isolation (src/detection/features.py)
+       - Restricts peeling chain change address degree checks strictly to transaction flow edges (`_get_flow_degree`).
+       - Eliminates false peeling score inflation caused by network IP broadcast or co-spend edges.
+
+[DONE] S3: Burst Ratio Timestamp Deduplication (src/detection/features.py)
+       - Groups timestamps by unique transaction ID (`wallet_tx_timestamps`).
+       - Eliminates duplicate 0.0s intervals caused by multi-input/output transactions.
+
+[DONE] N3 & N2: Attribution Evidence Framing & Passive Receiver Handling (src/detection/model.py, src/dashboard/app.py)
+       - Distinguishes unobserved network telemetry (passive receiver-only wallets) as `NaN` rather than misleading 0.0% confidence.
+       - Adds descriptive forensic labels (`attribution_evidence_level`) in accordance with PRD §7/§9.
+
+[DONE] S1: Directional SHAP Reason Generation (src/explain/explainer.py)
+       - Inverted decision SHAP sign to calculate positive anomaly contributions.
+       - Accurately generates reasons only for features that actively drove the anomaly score, filtering out normalizing inlier signals.
+
+[DONE] S4: End-to-End Pipeline Integration Test Suite (tests/test_pipeline.py)
+       - Added automated integration tests covering end-to-end execution for both EIF and standard Isolation Forest.
+
+================================================================================
+3. TEST SUITE VERIFICATION STATUS
+================================================================================
+
+All 21 unit and integration tests are PASSING (100% green):
   - tests/test_data_gen.py  -> [OK] PASS
-  - tests/test_graph.py     -> [OK] PASS
-  - tests/test_features.py  -> [OK] PASS
-  - tests/test_detection.py -> [OK] PASS
-  - tests/test_explain.py   -> [OK] PASS
-  - tests/test_dashboard.py -> [OK] PASS
+  - tests/test_graph.py     -> [OK] PASS (includes CoinJoin co-spend test)
+  - tests/test_features.py  -> [OK] PASS (includes proportional volume & burst tests)
+  - tests/test_detection.py -> [OK] PASS (includes attribution NaN & evidence level tests)
+  - tests/test_explain.py   -> [OK] PASS (includes SHAP directionality tests)
+  - tests/test_pipeline.py  -> [OK] PASS (end-to-end CLI runner for standard & EIF)
+  - tests/test_dashboard.py -> [OK] PASS (subgraph extraction & HTML rendering)
 
 ================================================================================
 3. REMAINING WORK & ROADMAP

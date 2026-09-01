@@ -7,25 +7,26 @@ from src.explain.explainer import format_reason, explain_anomalies
 
 
 def test_format_reason():
-    """Tests the format_reason conversion helper for features."""
-    # Test ratio/percentage columns
-    reason_tor = format_reason("tor_broadcast_ratio", 0.85)
-    assert "High Tor exit node broadcast ratio" in reason_tor
+    """Tests the format_reason conversion helper for features with SHAP directionality."""
+    # 1. Feature increased anomaly score (negative decision SHAP = positive anomaly driver)
+    reason_tor = format_reason("tor_broadcast_ratio", 0.85, shap_val=-0.25)
+    assert "Tor exit node broadcast ratio" in reason_tor
+    assert "elevated anomaly score" in reason_tor
     assert "85.0%" in reason_tor
 
-    reason_tor_low = format_reason("tor_broadcast_ratio", 0.05)
-    assert "Low Tor exit node broadcast ratio" in reason_tor_low
-    assert "5.0%" in reason_tor_low
+    reason_vol = format_reason("total_volume_btc", 12.3456, shap_val=-0.50)
+    assert "Elevated total transaction volume" in reason_vol
+    assert "increased anomaly score" in reason_vol
+    assert "12.35 BTC" in reason_vol
 
-    # Test btc/volume columns
-    reason_vol = format_reason("total_volume_btc", 12.3456)
-    assert "Unusual total transaction volume" in reason_vol
-    assert "12.3456 BTC" in reason_vol
-
-    # Test count columns
-    reason_ips = format_reason("unique_ips", 5.0)
-    assert "High unique IP count" in reason_ips
+    reason_ips = format_reason("unique_ips", 5.0, shap_val=-0.15)
+    assert "Elevated unique IP count" in reason_ips
     assert "5" in reason_ips
+
+    # 2. Feature mitigated anomaly score (positive decision SHAP = inlier/normalizing signal)
+    reason_mitigated = format_reason("total_volume_btc", 0.25, shap_val=0.30)
+    assert "Typical total transaction volume" in reason_mitigated
+    assert "mitigated anomaly score" in reason_mitigated
 
 
 def test_explain_anomalies():

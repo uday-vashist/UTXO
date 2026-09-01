@@ -7,6 +7,15 @@ import pandas as pd
 from datetime import datetime
 
 
+def _get_flow_degree(G: nx.MultiDiGraph, node: str) -> int:
+    """Calculates strictly the transaction flow degree, ignoring IP broadcast and co-spend edges (Finding B4)."""
+    if not G.has_node(node):
+        return 0
+    flow_in = sum(1 for _, _, d in G.in_edges(node, data=True) if d.get("edge_type") == "flow")
+    flow_out = sum(1 for _, _, d in G.out_edges(node, data=True) if d.get("edge_type") == "flow")
+    return flow_in + flow_out
+
+
 def compute_features(G: nx.MultiDiGraph) -> pd.DataFrame:
     """Computes a rich feature set for each wallet node in the MultiDiGraph.
 
@@ -64,7 +73,7 @@ def compute_features(G: nx.MultiDiGraph) -> pd.DataFrame:
 
         # --- 3. Ledger Behavior Features ---
         tx_amounts = []
-        tx_timestamps = []
+        wallet_tx_timestamps = {}
         inflow_count = 0
         outflow_count = 0
 
@@ -77,22 +86,27 @@ def compute_features(G: nx.MultiDiGraph) -> pd.DataFrame:
                     if amt is not None:
                         tx_amounts.append(float(amt))
                     ts = edge_data.get("timestamp")
-                    if ts:
-                        tx_timestamps.append(ts)
+                    if ts and txid not in wallet_tx_timestamps:
+                        wallet_tx_timestamps[txid] = ts
 
             # Inflow edges: wallet -> txid (means this wallet spent funds)
             for _, txid, edge_data in G.out_edges(wallet, data=True):
                 if edge_data.get("edge_type") == "flow":
                     inflow_count += 1
-                    # Inflow edges don't always record custom amount_btc in builder.py
-                    # We can look up the transaction amount from the txid node
-                    tx_node_data = G.nodes.get(txid, {})
-                    amt = tx_node_data.get("amount_btc")
+                    # Use the wallet's specific/proportional input share (Finding B2)
+                    amt = edge_data.get("amount_btc")
+                    if amt is None:
+                        # Fallback: divide gross TX amount by number of input addresses
+                        tx_node_data = G.nodes.get(txid, {})
+                        gross_amt = tx_node_data.get("amount_btc")
+                        if gross_amt is not None:
+                            num_inputs = max(1, sum(1 for _, _, d in G.in_edges(txid, data=True) if d.get("edge_type") == "flow"))
+                            amt = float(gross_amt) / num_inputs
                     if amt is not None:
                         tx_amounts.append(float(amt))
                     ts = edge_data.get("timestamp")
-                    if ts:
-                        tx_timestamps.append(ts)
+                    if ts and txid not in wallet_tx_timestamps:
+                        wallet_tx_timestamps[txid] = ts
 
         tx_count = inflow_count + outflow_count
         total_volume = sum(tx_amounts) if tx_amounts else 0.0
@@ -101,12 +115,13 @@ def compute_features(G: nx.MultiDiGraph) -> pd.DataFrame:
         std_tx_amount = np.std(tx_amounts) if tx_amounts else 0.0
 
         # --- 4. Time/Sequence Features (Burstiness) ---
+        # Deduplicate timestamps per unique transaction to eliminate 0.0s multi-output artifacts (Finding S3)
         burst_ratio = 0.0
+        tx_timestamps = list(wallet_tx_timestamps.values())
         if len(tx_timestamps) > 1:
             parsed_times = []
             for ts in tx_timestamps:
                 try:
-                    # Strip Z or offsets if present for standard parsing
                     ts_clean = ts.replace("Z", "").split(".")[0]
                     parsed_times.append(datetime.fromisoformat(ts_clean))
                 except Exception:
@@ -115,12 +130,11 @@ def compute_features(G: nx.MultiDiGraph) -> pd.DataFrame:
             if len(parsed_times) > 1:
                 parsed_times.sort()
                 intervals = [(parsed_times[i] - parsed_times[i-1]).total_seconds() for i in range(1, len(parsed_times))]
-                burst_txs = sum(1 for interval in intervals if interval < 10.0)
-                burst_ratio = burst_txs / len(intervals)
+                burst_txs = sum(1 for interval in intervals if 0.0 < interval < 10.0 or interval == 0.0)  # genuine rapid successive txs
+                burst_ratio = burst_txs / len(intervals) if intervals else 0.0
 
         # --- 5. Peeling Chain Indicator ---
-        # A peeling chain heuristic: wallet sends to transactions that consistently have 
-        # exactly 2 outputs (one payment, one change) where one output is a new/low-degree address.
+        # Strictly check flow degree instead of total graph degree to avoid network IP pollution (Finding B4)
         peeling_count = 0
         total_sent_txs = 0
         
@@ -135,10 +149,9 @@ def compute_features(G: nx.MultiDiGraph) -> pd.DataFrame:
                             outflows.append(out_wallet)
                     
                     if len(outflows) == 2:
-                        # Check degrees of the outflow wallets to see if one is likely a one-time change address
-                        deg_out1 = G.degree(outflows[0])
-                        deg_out2 = G.degree(outflows[1])
-                        # If one of the wallets has very low degree (e.g. <= 2), it's likely a peeling chain step
+                        deg_out1 = _get_flow_degree(G, outflows[0])
+                        deg_out2 = _get_flow_degree(G, outflows[1])
+                        # If one of the destination wallets has flow degree <= 2, it's a one-time change output
                         if deg_out1 <= 2 or deg_out2 <= 2:
                             peeling_count += 1
                             

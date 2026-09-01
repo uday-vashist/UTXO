@@ -8,23 +8,27 @@ from sklearn.ensemble import IsolationForest
 
 
 def calculate_wallet_attribution_confidence(G: nx.MultiDiGraph, wallet: str) -> float:
-    """Computes attribution confidence for a wallet based on network telemetry edges.
+    """Computes heuristic attribution evidence confidence based on network telemetry edges.
 
-    Attribution confidence is calculated by:
+    In accordance with PRD §7/§9, this metric represents a domain heuristic evidence score,
+    not a calibrated frequentist probability.
+
+    Attribution evidence is calculated by:
       1. Gathering all incoming 'first_broadcast' edges (from IP nodes).
-      2. Taking the average of their 'attribution_confidence' (0.85 for normal, 0.35 for Tor).
-      3. Applying penalties for high unique IP counts (IP hopping reduces attribution confidence).
-      4. Applying consistency boosts if a single IP is consistently seen.
+      2. If no broadcast telemetry exists (e.g. passive receiver-only wallet), returns np.nan (Finding N3).
+      3. Averaging broadcast edge weights (0.85 for normal direct broadcast, 0.35 for Tor exit node).
+      4. Applying penalties for high unique IP counts (IP hopping reduces attribution confidence).
+      5. Applying consistency boosts if a single IP is consistently observed across broadcasts.
 
     Args:
         G: The NetworkX MultiDiGraph.
         wallet: The wallet address node ID.
 
     Returns:
-        float: Computed attribution confidence score in the range [0.0, 1.0].
+        float: Computed attribution evidence score in [0.10, 0.95], or np.nan if no telemetry exists.
     """
     if not G.has_node(wallet):
-        return 0.0
+        return np.nan
 
     broadcasts = []
     for ip, _, edge_data in G.in_edges(wallet, data=True):
@@ -35,7 +39,8 @@ def calculate_wallet_attribution_confidence(G: nx.MultiDiGraph, wallet: str) -> 
             })
 
     if not broadcasts:
-        return 0.0  # No network telemetry captured for this wallet
+        # Passive recipient wallet: no broadcast telemetry observed (Finding N3)
+        return np.nan
 
     # Baseline: average of broadcast confidence weights
     base_conf = np.mean([b["confidence"] for b in broadcasts])
@@ -54,9 +59,20 @@ def calculate_wallet_attribution_confidence(G: nx.MultiDiGraph, wallet: str) -> 
     if unique_ips == 1 and total_broadcasts > 1:
         consistency_boost = min(0.10, 0.02 * (total_broadcasts - 1))
 
-    # Calculate final score and clamp to [0.1, 0.95]
+    # Calculate final score and clamp to [0.10, 0.95]
     final_conf = base_conf - ip_hopping_penalty + consistency_boost
-    return float(np.clip(final_conf, 0.1, 0.95))
+    return float(np.clip(final_conf, 0.10, 0.95))
+
+
+def get_attribution_evidence_label(conf: float) -> str:
+    """Returns a descriptive forensic label for attribution evidence (PRD §7)."""
+    if np.isnan(conf):
+        return "No Telemetry (Receiver Only)"
+    if conf >= 0.70:
+        return "Strong Evidence (Direct IP)"
+    if conf >= 0.40:
+        return "Moderate Evidence (Multi-IP)"
+    return "Low Evidence (Tor/VPN Relay)"
 
 
 from src.detection.eif import ExtendedIsolationForest
@@ -136,10 +152,14 @@ def train_and_score(
 
     scored_df["anomaly_confidence"] = scored_df["anomaly_score"].apply(get_confidence_bucket)
 
-    # Calculate network layer attribution confidence for each wallet
+    # Calculate network layer attribution confidence and evidence level for each wallet
     attribution_confs = []
+    attribution_labels = []
     for wallet in scored_df.index:
-        attribution_confs.append(calculate_wallet_attribution_confidence(G, wallet))
+        conf = calculate_wallet_attribution_confidence(G, wallet)
+        attribution_confs.append(conf)
+        attribution_labels.append(get_attribution_evidence_label(conf))
     scored_df["attribution_confidence"] = attribution_confs
+    scored_df["attribution_evidence_level"] = attribution_labels
 
     return clf, scored_df

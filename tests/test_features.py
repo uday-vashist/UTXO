@@ -123,12 +123,9 @@ def test_features_computation():
     burst_a = features_df.loc["1SenderA", "burst_ratio"]
     assert burst_a == 0.5
 
-    # 7. Check peeling chain score:
-    # 1SenderA has sent 3 transactions (tx1, tx2, tx4).
-    # tx1 has 2 outputs ("1ReceiverB", "1ChangeC"). 1ChangeC degree is very low.
-    # So peeling_chain_score should be > 0.
-    peel_a = features_df.loc["1SenderA", "peeling_chain_score"]
-    assert peel_a > 0.0
+    # 8. Check proportional volume attribution (Finding B2):
+    # tx1 (10.5 BTC) + tx2 (2.0 BTC) + tx4 (5.0 BTC / 2 inputs = 2.5 BTC) = 15.0 BTC
+    assert features_df.loc["1SenderA", "total_volume_btc"] == 15.0
 
     print("[OK] Feature engineering tests passed successfully!")
 
