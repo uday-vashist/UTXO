@@ -1,0 +1,340 @@
+================================================================================
+          BITSENTINEL (SIH26146 - NTRO) — MASTER TECHNICAL & DEFENSE GUIDE
+   AI-Powered Monitoring & Explainable Fusion of Bitcoin On-Chain Ledger 
+                      and P2P Network Telemetry
+================================================================================
+
+TABLE OF CONTENTS:
+1. Executive Summary & Problem Context (What & Why)
+2. High-Level Concept in Plain English
+3. Complete Tech Stack & How Every Tool is Used
+4. System Architecture & The 5-Stage Data Pipeline
+5. Deep-Dive: On-Chain & Network Heuristics (B1, B2, B4, S3)
+6. Deep-Dive: Machine Learning & Extended Isolation Forest (EIF)
+7. Deep-Dive: Explainable AI (SHAP: TreeSHAP vs KernelSHAP)
+8. Deep-Dive: P2P Network Attribution Engine (PRD §7 & §9)
+9. Interactive Dashboard: Tab-by-Tab & Component Breakdown
+10. Winning Pitch Q&A / Hard Technical Questions & Answers
+
+================================================================================
+1. EXECUTIVE SUMMARY & PROBLEM CONTEXT (WHAT & WHY)
+================================================================================
+Problem Statement: SIH26146 (National Technical Research Organisation - NTRO)
+Theme: Cyber Intelligence / AI-Powered Blockchain Traffic Surveillance
+
+THE CORE CHALLENGE:
+- The Bitcoin blockchain is publicly transparent but pseudonymous. Wallets are 
+  represented only as 26-62 character alphanumeric strings (e.g., 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa).
+- Traditional blockchain analytics tools (Chainalysis, Elliptic) rely exclusively 
+  on ON-CHAIN data (transaction graphs, address reuse, exchange deposit tagging).
+- However, criminals circumvent on-chain analytics using:
+  1. CoinJoin / Mixers (Wasabi, Whirlpool, JoinMarket) to obfuscate transaction flow.
+  2. Peeling Chains to layer illicit funds through hundreds of rapid change addresses.
+  3. Tor / VPNs / Fast-Flux IP Hopping to mask the physical network initiator.
+
+BITSENTINEL'S NOVEL INNOVATION:
+BitSentinel introduces a 2-LAYER HYBRID FUSION PARADIGM:
+  Layer 1 (On-Chain): Bitcoin Transaction Ledger (Graph structure, UTXO flows, amounts, fees, timestamps).
+  Layer 2 (Off-Chain): P2P Gossip Propagation Telemetry (First-seen broadcast IP, Autonomous System Number [ASN], GeoIP location, Tor exit-node status).
+
+By fusing Layer 1 and Layer 2 into a Heterogeneous Directed Multigraph, BitSentinel
+detects illicit typologies that are completely invisible to on-chain-only or network-only systems.
+
+================================================================================
+2. HIGH-LEVEL CONCEPT IN PLAIN ENGLISH
+================================================================================
+Imagine a criminal sending dirty money:
+- On the Blockchain: They split the funds into multiple tiny transactions (Peeling Chain)
+  or mix them with 50 other people (CoinJoin). To a standard blockchain scanner, this looks like normal traffic.
+- On the Internet (P2P Network): When a transaction is first broadcasted into the Bitcoin 
+  network, the initial P2P node that sends it reveals a source IP address. If that node is 
+  a known Tor Exit Node, or hops between 10 countries in 30 seconds, it leaves a digital footprint.
+
+BitSentinel connects these two worlds:
+1. It builds a map (Graph) connecting Wallets, Transactions, and Physical IP Addresses.
+2. It calculates 11 forensic metrics (e.g. how fast they switch IPs, whether they use Tor, volume spikes).
+3. An advanced AI model (Extended Isolation Forest) analyzes the data and spots anomalies.
+4. An Explainability AI (SHAP) writes down in plain English WHY the wallet is suspicious.
+5. An Interactive Dashboard presents this to intelligence analysts with visual link-analysis graphs.
+
+================================================================================
+3. COMPLETE TECH STACK & HOW EVERY TOOL IS USED
+================================================================================
+
+1. PYTHON 3.10+ (Core Runtime):
+   - The foundational programming language across data generation, graph modeling, ML, and dashboarding.
+
+2. PANDAS & NUMPY (Data Ingestion, Matrix Operations & Vectorized Math):
+   - Pandas: Handles 15-column telemetry CSV ingestion, DataFrame schema validation, timestamp parsing, 
+     and data filtering.
+   - NumPy: Powers vector operations, standard deviations, quantiles, and coordinate transformations 
+     in feature extraction and EIF random projection hyperplanes.
+
+3. NETWORKX (Heterogeneous Graph Modeling & Topology Analysis):
+   - Builds a MultiDiGraph containing 3 node types ('wallet', 'txid', 'ip') and 3 edge types:
+     * 'flow': Directed fund transfers (wallet -> txid -> wallet) with exact BTC volume.
+     * 'co_spend': Common-Input Ownership heuristic links between multi-input wallets.
+     * 'first_broadcast': Earliest P2P gossip event linking Source IP to Input Wallet with attribution confidence.
+   - Extracts k-hop ego-networks around investigated entities.
+
+4. SCIKIT-LEARN (Machine Learning & Standard Isolation Forest):
+   - Provides baseline `IsolationForest` implementation for comparative benchmarking.
+   - Provides utility metrics, preprocessing, and K-Means clustering (`shap.kmeans`).
+
+5. EXTENDED ISOLATION FOREST (EIH) (Custom Pure-Python Anomaly Detection Algorithm):
+   - Custom implementation in `src/detection/eif.py`.
+   - Replaces standard axis-parallel orthogonal decision cuts with randomized rotational hyperplanes
+     ($p = X \cdot \vec{w}$), completely eliminating artificial scoring artifacts in multi-dimensional space.
+
+6. SHAP (SHapley Additive exPlanations — Explainable AI):
+   - Dual-Explainer Architecture in `src/explain/explainer.py`:
+     * TreeSHAP: Fast $O(TLD^2)$ exact tree traversal for standard Isolation Forest.
+     * KernelSHAP: Game-theoretic coalition sampling with K-Means background clustering ($k=5$) 
+       for Extended Isolation Forest.
+   - Formulates directional, judge-proof natural language explanations for intelligence alerts.
+
+7. STREAMLIT (Interactive Web Dashboard):
+   - Rapid, high-performance UI framework running on `http://localhost:8501`.
+   - Styled with custom Dark-Mode Glassmorphic CSS (glowing cyan/emerald badges, slate metric cards).
+   - Provides real-time pipeline configuration, alert filtering, and interactive triage.
+
+8. PYVIS & VIS.JS (Interactive Link-Analysis Graph Visualizer):
+   - Generates interactive, physics-driven HTML force-directed graph diagrams embedded directly 
+     inside the Streamlit dashboard via iframe.
+   - Color-codes entities: Hexagons (Wallets: Red=Alert, Green=Normal), Circles (IPs: Blue=Direct, Red Onion=Tor), 
+     Diamonds (Transactions: Gray).
+
+9. FAKER (Synthetic Telemetry Generation):
+   - Generates realistic Bitcoin addresses (P2P-KH, P2SH, SegWit, Taproot), IP addresses, ports, 
+     timestamps, and network propagation delays in `src/data_gen/`.
+
+10. PYTEST (Automated Unit & Integration Test Suite):
+    - Comprehensive 21-test suite verifying graph construction, feature math, model scoring, 
+      SHAP directionality, dashboard HTML, and end-to-end pipeline execution (100% passing).
+
+================================================================================
+4. SYSTEM ARCHITECTURE & THE 5-STAGE DATA PIPELINE
+================================================================================
+
+[ Stage 1: Data Ingestion & Validation ]
+  - Input: 15-column telemetry CSV (timestamp, src_ip, dst_ip, txid, inputs, outputs, amounts, etc.)
+  - Validates schema, strict 1-to-1 output-amount pairing, and chronological ordering.
+
+[ Stage 2: Heterogeneous Entity Graph Construction (src/graph/builder.py) ]
+  - Converts table into NetworkX MultiDiGraph.
+  - Detects CoinJoin transactions to prevent false co-spend edge clustering (Finding B1).
+  - Assigns proportional input contributions to inflow edges (Finding B2).
+  - Captures earliest P2P first_broadcast edge per transaction with Tor confidence penalty (0.35 vs 0.85).
+
+[ Stage 3: Multi-Dimensional Feature Engineering (src/detection/features.py) ]
+  - Extracts 11 rich behavioral features per wallet address across 4 distinct dimensions:
+    1. Graph Structure: degree_centrality, co_spend_cluster_size
+    2. Network Telemetry: unique_ips, tor_broadcast_ratio, ip_switching_frequency
+    3. Ledger Volume: tx_count, total_volume_btc, avg_tx_amount, max_tx_amount, std_tx_amount
+    4. Sequence & Timing: burst_ratio (deduplicated by txid), peeling_chain_score (flow degree isolated)
+
+[ Stage 4: ML Anomaly Detection & Scoring (src/detection/model.py) ]
+  - Fits Extended Isolation Forest (or standard Isolation Forest).
+  - Normalizes raw anomaly scores to $[0.0, 1.0]$ where $1.0$ is the most anomalous outlier.
+  - Dynamically assigns Risk Confidence buckets (High, Medium, Low) based on user contamination quantile.
+  - Calculates P2P Attribution Confidence & evidence classification labels.
+
+[ Stage 5: Explainable AI & Alerts Export (src/explain/explainer.py, src/pipeline.py) ]
+  - Generates SHAP explanations using TreeSHAP or KernelSHAP.
+  - Inverts decision SHAP sign ($\text{AnomalyContribution} = -\text{SHAP}$) to rank positive anomaly drivers.
+  - Exports ranked alerts to `data/alerts.csv` and serialized graph to `data/entity_graph.pkl`.
+
+================================================================================
+5. DEEP-DIVE: ON-CHAIN & NETWORK HEURISTICS (B1, B2, B4, S3)
+================================================================================
+
+1. Finding B1: CoinJoin / Mixer Clustering Isolation
+   - Problem: Standard Common-Input Ownership heuristic assumes all inputs in a multi-input transaction 
+     belong to the same person. In a CoinJoin (Wasabi/Whirlpool), multiple unrelated users pool funds together. 
+     Creating co-spend edges between them merges innocent users into criminal clusters.
+   - Solution: Added `_is_coinjoin(inputs, outputs)`. If a transaction has $\ge 2$ inputs and $\ge 2$ outputs 
+     of identical denomination, it is tagged `is_coinjoin=True`, and co-spend edges are skipped.
+
+2. Finding B2: Proportional Input Volume Attribution
+   - Problem: In multi-input transactions, inflow edges previously read gross transaction volume, 
+     falsely assigning 100% of a 100 BTC transaction to a wallet that only contributed 1 BTC.
+   - Solution: Input edges `in_addr -> txid` now store proportional volume (`amount_btc / num_inputs`).
+
+3. Finding B4: Flow-Specific Peeling Chain Degree Isolation
+   - Problem: Peeling chain heuristics detect 2-output transactions where one output is a fresh, 
+     low-degree change address. Incident IP broadcast (`first_broadcast`) edges inflated node degree, 
+     masking peeling chains.
+   - Solution: Created `_get_flow_degree(G, node)` which strictly counts `flow` edges, making on-chain 
+     heuristics immune to network-layer graph noise.
+
+4. Finding S3: Burst Ratio Timestamp Deduplication
+   - Problem: Wallets in multi-input/output transactions had duplicate timestamps recorded, producing 
+     `0.0s` intervals that falsely inflated burst ratios.
+   - Solution: Grouped timestamps by unique transaction ID (`wallet_tx_timestamps[txid] = ts`).
+
+================================================================================
+6. DEEP-DIVE: MACHINE LEARNING & EXTENDED ISOLATION FOREST (EIF)
+================================================================================
+
+WHY NOT STANDARD ISOLATION FOREST?
+- Standard Isolation Forest (Liu et al., 2008) isolates anomalies by selecting a random feature 
+  and a random split value between min and max.
+- Because it cuts parallel to coordinate axes ($X_i < \theta$), it creates "ghost artifact scoring zones" 
+  in multi-dimensional space, falsely scoring normal points in corner regions as anomalous.
+
+HOW EXTENDED ISOLATION FOREST WORKS (Hariri et al., 2019):
+- In EIF, instead of choosing a single feature coordinate, a random normal vector $\vec{w}$ is drawn 
+  from a standard Gaussian distribution ($\mathcal{N}(0, 1)$), and a random intercept point $\vec{p}$ is selected.
+- The split is evaluated via dot product projection:
+  $$\vec{x} \cdot \vec{w} \le \vec{p} \cdot \vec{w}$$
+- This allows hyperplanes to cut at arbitrary angles and slopes, perfectly isolating multi-modal clusters 
+  and complex non-linear illicit typologies (e.g. high volume + Tor + fast IP switching).
+
+MATHEMATICAL NORMALIZATION:
+- Raw decision function $s(x) \in [-0.5, 0.5]$ (where negative is outlier, positive is inlier).
+- Normalized in BitSentinel:
+  $$\text{AnomalyScore}(x) = \frac{\max(s) - s(x)}{\max(s) - \min(s)} \in [0.0, 1.0]$$
+
+================================================================================
+7. DEEP-DIVE: EXPLAINABLE AI (SHAP: TREESHAP VS KERNELSHAP)
+================================================================================
+
+THE EXPLAINABILITY PARADIGM:
+- Machine learning alerts without explanations are useless to intelligence officers.
+- BitSentinel calculates SHAP values (Shapley Additive exPlanations), rooted in cooperative game theory:
+  $$\phi_i(x) = \sum_{S \subseteq F \setminus \{i\}} \frac{|S|!(|F| - |S| - 1)!}{|F|!} [f(S \cup \{i\}) - f(S)]$$
+
+DYNAMIC EXPLAINER SWITCHING:
+1. Standard Isolation Forest -> `shap.TreeExplainer`:
+   - Fast $O(TLD^2)$ exact tree traversal algorithm.
+   - Evaluates tree paths in milliseconds.
+2. Extended Isolation Forest -> `shap.KernelExplainer`:
+   - Model-agnostic weighted linear regression on sampled coalitions.
+   - Highly optimized for demo speed:
+     * Feature space background summarized into 5 representative clusters via K-Means (`shap.kmeans(X, 5)`).
+     * Coalition sample size set to `nsamples=100`.
+     * Explanations filtered to top anomaly candidates ($\text{score} \ge \text{threshold}$).
+
+DIRECTIONAL ACCURACY (Finding S1):
+- In Isolation Forest, lower decision score = higher anomaly.
+- Therefore, positive anomaly contribution is calculated as:
+  $$\text{AnomalyContribution}_j = -\phi_j(\text{decision\_function})$$
+- Only features with positive anomaly contribution are output as primary reasons:
+  * e.g., "Tor exit node broadcast ratio (100.0%) elevated anomaly score"
+  * e.g., "Elevated total transaction volume (124.59 BTC) increased anomaly score"
+
+================================================================================
+8. DEEP-DIVE: P2P NETWORK ATTRIBUTION ENGINE (PRD §7 & §9)
+================================================================================
+
+HOW FIRST-SEEN GOSSIP ATTRIBUTION WORKS:
+- When a transaction is created, it is flooded across the Bitcoin P2P gossip network.
+- The earliest received `INV` / `TX` message linking a Source IP to the spending transaction 
+  creates a directed `first_broadcast` edge: $\text{src\_ip} \xrightarrow{} \text{input\_wallet}$.
+
+ATTRIBUTION CONFIDENCE CALCULATION (`src/detection/model.py`):
+1. Base Edge Weight:
+   - Direct Residential/Datacenter IP: $0.85$ base confidence.
+   - Tor Exit Node: $0.35$ base confidence (penalized due to anonymization relay).
+2. Consistency Boost:
+   - If a single IP is repeatedly observed broadcasting transactions for this wallet:
+     $$\text{Boost} = \min(0.10, 0.02 \times (\text{total\_broadcasts} - 1))$$
+3. IP Hopping Penalty:
+   - If multiple distinct IPs broadcast for this wallet (proxy/VPN switching):
+     $$\text{Penalty} = 0.05 \times (\text{unique\_ips} - 1)$$
+4. Final Clamped Heuristic Score:
+   $$\text{AttributionScore} = \text{clip}(\text{Base} - \text{Penalty} + \text{Boost}, 0.10, 0.95)$$
+
+HONEST FORENSIC CLASSIFICATION (Finding N3 & N2):
+- Passive Recipient Wallets (only received funds, never broadcasted a transaction):
+  * Returned as `NaN` (NOT `0.0%`).
+  * Labeled: `"No Telemetry (Receiver Only)"`.
+- Active Wallets:
+  * $\ge 0.70$: `"Strong Evidence (Direct IP)"`
+  * $0.40 - 0.70$: `"Moderate Evidence (Multi-IP)"`
+  * $< 0.40$: `"Low Evidence (Tor/VPN Relay)"`
+- Framed explicitly as a probabilistic heuristic evidence score (PRD §7/§9), never absolute certainty.
+
+================================================================================
+9. INTERACTIVE DASHBOARD: TAB-BY-TAB & COMPONENT BREAKDOWN
+================================================================================
+
+URL: `http://localhost:8501`
+
+[ 1. Header & Top KPI Metrics ]
+- Total Wallets Profiled: Number of tracked wallet entities & total graph nodes/edges.
+- Critical High-Risk Alerts: Number of wallets with "High" anomaly confidence.
+- Average Anomaly Index: Network-wide mean anomaly score ($0.000 - 1.000$).
+- Strong Attribution Ratio: Percentage of active wallets with reliable broadcast telemetry ($\ge 50\%$).
+
+[ 2. Sidebar Configuration Controls ]
+- Transaction Dataset Path: Select CSV input path.
+- Detection Model Algorithm: Toggle between Extended Isolation Forest (EIH) and Standard IF.
+- Contamination Rate Slider: Adjust expected anomaly percentage ($1\% - 20\%$).
+- Random Seed: Set reproducible seed.
+- 🚀 Run Analysis Pipeline Button: Executes full ingestion, graph construction, EIF fitting, 
+  SHAP generation, and automatic cache invalidation live in the UI.
+- Subgraph Settings: Radius (hops), Max Nodes, Edge Type Filters.
+
+[ 3. Tab 1: 🚨 Alert Triage Center ]
+- Search & Filter: Filter by Risk Level (High/Med/Low), search address substring, or min anomaly score.
+- Interactive Alerts Table:
+  * Anomaly Score: Color progress bar ($0.000 - 1.000$).
+  * Risk Level: High (Red), Medium (Amber), Low (Blue).
+  * Attribution Conf. & Status: Progress bar + forensic classification label.
+  * Primary Explanations (SHAP): Human-readable root causes.
+  * Volume, Tx Count, Unique IPs, Tor Ratio.
+- Quick Investigate Entity: Lock any alert and transition directly into Tab 2.
+
+[ 4. Tab 2: 🕸️ Entity Investigation & Subgraph Visualizer ]
+- Interactive Pyvis Network Visualizer:
+  * Hexagons (Wallets): Red = Anomaly Alert, Green = Normal.
+  * Circles (IPs): Blue = Direct IP, Red with Onion = Tor Exit Node.
+  * Diamonds (Transactions): Gray with amount, fee, and timestamp tooltip.
+  * Edges: Cyan = Fund Flow (with BTC amount), Purple Dashed = Co-spend, Amber Lightning = First Broadcast.
+- Entity Dossier: Side-by-side on-chain ledger activity vs P2P network telemetry.
+- PRD §7/§9 Attribution Notice: Prominent legal disclaimer on probabilistic gossip attribution.
+
+[ 5. Tab 3: 📊 Ground Truth Benchmark & Pitch Evaluation ]
+- Precision, Recall, and F1-Score metrics calculated against synthetic ground truth illicit clusters.
+- Anomaly Decision Threshold slider to observe precision/recall trade-offs in real time.
+- Anomaly score box plots across typologies (Normal, Mixer / CoinJoin, Peeling Chains, Tor Ransomware).
+
+[ 6. Tab 4: 📘 Architecture, Fusion Paradigm & Mathematical Reference ]
+- Full technical documentation of the 2-layer fusion paradigm, EIF hyperplanes, and SHAP formulas.
+
+================================================================================
+10. WINNING PITCH Q&A / HARD TECHNICAL QUESTIONS & ANSWERS
+================================================================================
+
+Q1: "How do you prove that an IP address actually belongs to a Bitcoin wallet?"
+A1: "In decentralized P2P networks, absolute judicial certainty is impossible without ISP subpoenas. 
+     BitSentinel captures the FIRST P2P gossip message broadcasted across the network for a given transaction. 
+     We frame this as a heuristic attribution evidence score (PRD §7/§9), applying penalties for Tor exits 
+     and multi-IP hopping while boosting consistency when a single IP repeatedly originates a wallet's transactions."
+
+Q2: "Why did you implement Extended Isolation Forest instead of using XGBoost or standard Isolation Forest?"
+A2: "XGBoost requires labeled supervision, but in real-world Bitcoin monitoring, new laundering techniques 
+     are zero-day and unlabeled. Standard Isolation Forest is unsupervised but limited to axis-parallel splits, 
+     creating false geometric artifacts. Extended Isolation Forest uses randomized rotational hyperplanes 
+     ($p = X \cdot w$), completely eliminating axis bias and accurately isolating multi-dimensional correlations."
+
+Q3: "How does your CoinJoin detection prevent false clustering?"
+A3: "Standard clustering uses Satoshi's Common-Input Ownership Heuristic (all inputs belong to 1 owner). 
+     In CoinJoin mixers (Wasabi/Whirlpool), 50 people combine inputs with equal output denominations. 
+     BitSentinel detects equal-output mixing transactions (`_is_coinjoin`) and skips creating co-spend edges, 
+     preventing catastrophic false clustering of innocent participants."
+
+Q4: "How does SHAP explain anomalies in your system?"
+A4: "We use a dual explainability engine: TreeSHAP for standard decision trees and KernelSHAP with K-Means 
+     background clustering for Extended Isolation Forest. We invert the decision SHAP sign so that features 
+     that actively drove the anomaly score higher (such as 100% Tor exit usage or high peeling chain scores) 
+     are formulated into plain-English intelligence reasons."
+
+Q5: "Can this system run offline in a secure air-gapped environment?"
+A5: "Yes! BitSentinel is 100% offline-ready. It uses local CSV lookups for GeoIP and Tor registries, 
+     requires zero external API calls, and runs entirely within an air-gapped Python/Streamlit environment."
+
+================================================================================
+END OF BITSENTINEL MASTER TECHNICAL GUIDE
+================================================================================
